@@ -1,7 +1,7 @@
 {
-  "name": "yummc-bank",
+  "name": "discord-bank-bot",
   "version": "1.0.0",
-  "description": "YUMMC Discord Bank Bot",
+  "description": "Discord Bank Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
