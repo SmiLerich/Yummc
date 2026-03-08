@@ -11,14 +11,18 @@ TextInputStyle,
 SlashCommandBuilder
 }=require("discord.js")
 
-const config=require("./config.json")
 const db=require("./database")
+
+const TOKEN=process.env.TOKEN
+const ADMIN_ROLE=process.env.ADMIN_ROLE
+const ADMIN_CHANNEL=process.env.ADMIN_CHANNEL
+const QR_IMAGE=process.env.QR_IMAGE
 
 const client=new Client({
 intents:[GatewayIntentBits.Guilds]
 })
 
-/* ================= READY ================= */
+/* READY */
 
 client.on("ready",async()=>{
 
@@ -36,7 +40,7 @@ new SlashCommandBuilder()
 
 new SlashCommandBuilder()
 .setName("topbank")
-.setDescription("Xem top giàu")
+.setDescription("Top người giàu")
 
 ]
 
@@ -44,21 +48,21 @@ await client.application.commands.set(commands)
 
 })
 
-/* ================= SLASH ================= */
+/* INTERACTION */
 
 client.on("interactionCreate",async interaction=>{
 
-if(interaction.isChatInputCommand()){
+/* SLASH */
 
-/* OPEN BANK */
+if(interaction.isChatInputCommand()){
 
 if(interaction.commandName==="openbank"){
 
 const modal=new ModalBuilder()
 
-.setCustomId("openbank_modal")
+.setCustomId("openbank")
 
-.setTitle("🏦 Mở tài khoản ngân hàng")
+.setTitle("Mở tài khoản")
 
 const name=new TextInputBuilder()
 
@@ -84,8 +88,6 @@ return interaction.showModal(modal)
 
 }
 
-/* BANK */
-
 if(interaction.commandName==="bank"){
 
 let user=db.getUser(interaction.user.id)
@@ -94,14 +96,14 @@ if(!user.logged){
 
 const modal=new ModalBuilder()
 
-.setCustomId("login_modal")
+.setCustomId("login")
 
-.setTitle("🔐 Đăng nhập ngân hàng")
+.setTitle("Đăng nhập ngân hàng")
 
 const pass=new TextInputBuilder()
 
 .setCustomId("pass")
-.setLabel("Nhập mật khẩu")
+.setLabel("Mật khẩu")
 .setStyle(TextInputStyle.Short)
 
 modal.addComponents(
@@ -114,11 +116,9 @@ return interaction.showModal(modal)
 
 }
 
-showBankUI(interaction)
+showBank(interaction)
 
 }
-
-/* TOP BANK */
 
 if(interaction.commandName==="topbank"){
 
@@ -140,7 +140,7 @@ text+=`**${i+1}.** <@${u[0]}> - ${u[1].money} VND\n`
 
 const embed=new EmbedBuilder()
 
-.setTitle("💰 TOP ĐẠI GIA YUMMC")
+.setTitle("💰 TOP ĐẠI GIA")
 
 .setColor("Gold")
 
@@ -152,13 +152,11 @@ interaction.reply({embeds:[embed]})
 
 }
 
-/* ================= MODAL ================= */
+/* MODAL */
 
 if(interaction.isModalSubmit()){
 
-/* CREATE ACCOUNT */
-
-if(interaction.customId==="openbank_modal"){
+if(interaction.customId==="openbank"){
 
 let name=interaction.fields.getTextInputValue("name")
 let pass=interaction.fields.getTextInputValue("pass")
@@ -174,9 +172,7 @@ return interaction.reply("✅ Mở tài khoản thành công")
 
 }
 
-/* LOGIN */
-
-if(interaction.customId==="login_modal"){
+if(interaction.customId==="login"){
 
 let pass=interaction.fields.getTextInputValue("pass")
 
@@ -189,39 +185,35 @@ user.logged=true
 
 db.updateUser(interaction.user.id,user)
 
-return showBankUI(interaction)
+return showBank(interaction)
 
 }
 
 }
 
-/* ================= BUTTON ================= */
+/* BUTTON */
 
 if(interaction.isButton()){
 
-/* NẠP TIỀN */
-
-if(interaction.customId==="nap_tien"){
+if(interaction.customId==="nap"){
 
 const embed=new EmbedBuilder()
 
 .setTitle("💳 NẠP TIỀN")
 
-.setDescription("Chọn phương thức nạp")
-
-.setColor("Green")
+.setDescription("Chọn phương thức")
 
 const row=new ActionRowBuilder()
 
 .addComponents(
 
 new ButtonBuilder()
-.setCustomId("nap_card")
+.setCustomId("napcard")
 .setLabel("📱 Nạp Card")
 .setStyle(ButtonStyle.Primary),
 
 new ButtonBuilder()
-.setCustomId("nap_bank")
+.setCustomId("napbank")
 .setLabel("🏦 Nạp Bank")
 .setStyle(ButtonStyle.Success)
 
@@ -231,19 +223,15 @@ return interaction.reply({embeds:[embed],components:[row],ephemeral:true})
 
 }
 
-/* NẠP BANK */
-
-if(interaction.customId==="nap_bank"){
+if(interaction.customId==="napbank"){
 
 const embed=new EmbedBuilder()
 
 .setTitle("🏦 NẠP CHUYỂN KHOẢN")
 
-.setDescription("Quét QR bên dưới để chuyển")
+.setDescription("Quét QR bên dưới")
 
-.setImage(config.qrImage)
-
-.setColor("Blue")
+.setImage(QR_IMAGE)
 
 const row=new ActionRowBuilder()
 
@@ -251,7 +239,7 @@ const row=new ActionRowBuilder()
 
 new ButtonBuilder()
 
-.setCustomId("bank_done")
+.setCustomId("bankdone")
 
 .setLabel("✅ Tôi đã chuyển")
 
@@ -267,9 +255,9 @@ return interaction.reply({embeds:[embed],components:[row],ephemeral:true})
 
 })
 
-/* ================= BANK UI ================= */
+/* BANK UI */
 
-function showBankUI(interaction){
+function showBank(interaction){
 
 let user=db.getUser(interaction.user.id)
 
@@ -283,9 +271,9 @@ const embed=new EmbedBuilder()
       🏦 **YUMMC BANK**
 ┗━━━━━━━━━━━━━━━━━━━━━━┛
 
-👤 **Chủ TK:** ${user.username}
+👤 Chủ TK: **${user.username}**
 
-💰 **Số dư:** ${user.money.toLocaleString()} VND
+💰 Số dư: **${user.money.toLocaleString()} VND**
 
 `)
 
@@ -294,23 +282,13 @@ const row=new ActionRowBuilder()
 .addComponents(
 
 new ButtonBuilder()
-.setCustomId("nap_tien")
+.setCustomId("nap")
 .setLabel("💳 Nạp tiền")
 .setStyle(ButtonStyle.Success),
 
 new ButtonBuilder()
-.setCustomId("chuyen_tien")
-.setLabel("💸 Chuyển tiền")
-.setStyle(ButtonStyle.Primary),
-
-new ButtonBuilder()
 .setCustomId("top")
 .setLabel("📊 Top")
-.setStyle(ButtonStyle.Secondary),
-
-new ButtonBuilder()
-.setCustomId("history")
-.setLabel("📜 Lịch sử")
 .setStyle(ButtonStyle.Secondary)
 
 )
@@ -319,4 +297,4 @@ interaction.reply({embeds:[embed],components:[row]})
 
 }
 
-client.login(config.token)
+client.login(TOKEN)
