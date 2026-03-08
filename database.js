@@ -8,24 +8,17 @@ function writeDB(data){
 fs.writeFileSync("./userdata.json",JSON.stringify(data,null,2))
 }
 
-function createUser(id,username,password){
+function createUser(id,name,pass){
 
 const db = readDB()
 
 db.users[id] = {
-username,
-password,
+name,
+pass,
 money:0
 }
 
 writeDB(db)
-
-}
-
-function getUser(id){
-
-const db = readDB()
-return db.users[id]
 
 }
 
@@ -69,7 +62,6 @@ module.exports = {
 readDB,
 writeDB,
 createUser,
-getUser,
 addMoney,
 transfer
 }
