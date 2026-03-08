@@ -16,18 +16,17 @@ const client = new Client({
 intents:[GatewayIntentBits.Guilds]
 })
 
-const TOKEN = process.env.TOKEN || "BOT_TOKEN"
-const ADMIN_ROLE = process.env.ADMIN_ROLE || "ADMIN_ROLE_ID"
-const ADMIN_CHANNEL = process.env.ADMIN_CHANNEL || "ADMIN_CHANNEL_ID"
-const QR_IMAGE = process.env.QR_IMAGE || "QR_LINK"
+const TOKEN = process.env.TOKEN
+const ADMIN_CHANNEL = process.env.ADMIN_CHANNEL
+const QR_IMAGE = process.env.QR_IMAGE
 
-client.once("clientReady",()=>{
+client.once("ready",()=>{
 
 console.log("Bank bot online")
 
 })
 
-client.on("interactionCreate", async interaction => {
+client.on("interactionCreate", async interaction=>{
 
 if(interaction.isChatInputCommand()){
 
@@ -107,69 +106,9 @@ ephemeral:true
 
 }
 
-if(interaction.isModalSubmit()){
-
-if(interaction.customId === "create_account"){
-
-const name = interaction.fields.getTextInputValue("username")
-const pass = interaction.fields.getTextInputValue("password")
-
-db.createUser(interaction.user.id,name,pass)
-
-interaction.reply({
-content:"✅ Tạo tài khoản thành công!",
-ephemeral:true
-})
-
-}
-
-if(interaction.customId === "modal_transfer"){
-
-const target = interaction.fields.getTextInputValue("target")
-const amount = parseInt(interaction.fields.getTextInputValue("amount"))
-
-const dbdata = db.readDB()
-
-if(!dbdata.users[target]){
-
-return interaction.reply({
-content:"❌ Người nhận không tồn tại",
-ephemeral:true
-})
-
-}
-
-if(dbdata.users[interaction.user.id].money < amount){
-
-return interaction.reply({
-content:"❌ Không đủ tiền",
-ephemeral:true
-})
-
-}
-
-db.transfer(interaction.user.id,target,amount)
-
-interaction.reply({
-content:`✅ Đã chuyển ${amount} VND`,
-ephemeral:true
-})
-
-}
-
-}
-
 if(interaction.isButton()){
 
 if(interaction.customId === "deposit"){
-
-const embed = new EmbedBuilder()
-
-.setTitle("💰 NẠP TIỀN")
-
-.setDescription("Chọn phương thức")
-
-.setColor("Blue")
 
 const row = new ActionRowBuilder()
 
@@ -188,20 +127,107 @@ new ButtonBuilder()
 )
 
 interaction.reply({
-embeds:[embed],
+content:"Chọn phương thức nạp",
 components:[row],
 ephemeral:true
 })
 
 }
 
+if(interaction.customId === "deposit_card"){
+
+const modal = new ModalBuilder()
+.setCustomId("card_modal")
+.setTitle("Nạp thẻ")
+
+const type = new TextInputBuilder()
+.setCustomId("type")
+.setLabel("Loại thẻ")
+.setStyle(TextInputStyle.Short)
+
+const code = new TextInputBuilder()
+.setCustomId("code")
+.setLabel("Mã thẻ")
+.setStyle(TextInputStyle.Short)
+
+const serial = new TextInputBuilder()
+.setCustomId("serial")
+.setLabel("Serial")
+.setStyle(TextInputStyle.Short)
+
+const price = new TextInputBuilder()
+.setCustomId("price")
+.setLabel("Mệnh giá")
+.setStyle(TextInputStyle.Short)
+
+modal.addComponents(
+new ActionRowBuilder().addComponents(type),
+new ActionRowBuilder().addComponents(code),
+new ActionRowBuilder().addComponents(serial),
+new ActionRowBuilder().addComponents(price)
+)
+
+interaction.showModal(modal)
+
+}
+
 if(interaction.customId === "deposit_bank"){
+
+const modal = new ModalBuilder()
+.setCustomId("bank_modal")
+.setTitle("Nạp chuyển khoản")
+
+const gameid = new TextInputBuilder()
+.setCustomId("gameid")
+.setLabel("ID Game")
+.setStyle(TextInputStyle.Short)
+
+const money = new TextInputBuilder()
+.setCustomId("money")
+.setLabel("Số tiền")
+.setStyle(TextInputStyle.Short)
+
+modal.addComponents(
+new ActionRowBuilder().addComponents(gameid),
+new ActionRowBuilder().addComponents(money)
+)
+
+interaction.showModal(modal)
+
+}
+
+}
+
+if(interaction.isModalSubmit()){
+
+if(interaction.customId === "create_account"){
+
+const name = interaction.fields.getTextInputValue("username")
+const pass = interaction.fields.getTextInputValue("password")
+
+db.createUser(interaction.user.id,name,pass)
+
+interaction.reply({
+content:"✅ Tạo tài khoản thành công",
+ephemeral:true
+})
+
+}
+
+if(interaction.customId === "bank_modal"){
+
+const gameid = interaction.fields.getTextInputValue("gameid")
+const money = interaction.fields.getTextInputValue("money")
 
 const embed = new EmbedBuilder()
 
 .setTitle("🏦 NẠP CHUYỂN KHOẢN")
 
-.setDescription("Quét QR bên dưới")
+.setDescription(`
+ID GAME: **${gameid}**
+SỐ TIỀN: **${money}**
+Quét QR bên dưới
+`)
 
 .setImage(QR_IMAGE)
 
@@ -210,7 +236,7 @@ const row = new ActionRowBuilder()
 .addComponents(
 
 new ButtonBuilder()
-.setCustomId("bank_done")
+.setCustomId(`bank_done_${money}`)
 .setLabel("✅ Tôi đã chuyển")
 .setStyle(ButtonStyle.Success)
 
@@ -219,116 +245,63 @@ new ButtonBuilder()
 interaction.reply({
 embeds:[embed],
 components:[row],
-flags: 64
+ephemeral:true
 })
 
 }
 
-if(interaction.customId === "bank_done"){
+if(interaction.customId === "card_modal"){
+
+const type = interaction.fields.getTextInputValue("type")
+const code = interaction.fields.getTextInputValue("code")
+const serial = interaction.fields.getTextInputValue("serial")
+const price = interaction.fields.getTextInputValue("price")
 
 const channel = client.channels.cache.get(ADMIN_CHANNEL)
 
-channel.send(`💰 ${interaction.user} đã gửi yêu cầu nạp bank`)
+const row = new ActionRowBuilder()
 
-interaction.reply({
-content:"✅ Đã gửi admin duyệt",
-ephemeral:true
-})
+.addComponents(
 
-}
+new ButtonBuilder()
+.setCustomId(`card_accept_${interaction.user.id}_${price}`)
+.setLabel("Duyệt")
+.setStyle(ButtonStyle.Success),
 
-if(interaction.customId === "transfer"){
-
-const modal = new ModalBuilder()
-
-.setCustomId("modal_transfer")
-
-.setTitle("Chuyển tiền")
-
-const user = new TextInputBuilder()
-
-.setCustomId("target")
-
-.setLabel("ID người nhận")
-
-.setStyle(TextInputStyle.Short)
-
-const money = new TextInputBuilder()
-
-.setCustomId("amount")
-
-.setLabel("Số tiền")
-
-.setStyle(TextInputStyle.Short)
-
-modal.addComponents(
-
-new ActionRowBuilder().addComponents(user),
-new ActionRowBuilder().addComponents(money)
+new ButtonBuilder()
+.setCustomId(`card_reject`)
+.setLabel("Từ chối")
+.setStyle(ButtonStyle.Danger)
 
 )
 
-interaction.showModal(modal)
+channel.send({
 
-}
+embeds:[
 
-if(interaction.customId === "history"){
+new EmbedBuilder()
 
-const data = db.readDB()
+.setTitle("💳 Yêu cầu nạp thẻ")
 
-const list = data.history
+.setDescription(`
 
-.filter(x=>x.from===interaction.user.id||x.to===interaction.user.id)
+User: ${interaction.user.username}
 
-.slice(-10)
+Loại: ${type}
+Mã: ${code}
+Serial: ${serial}
+Mệnh giá: ${price}
 
-let text=""
+`)
 
-list.forEach(x=>{
+],
 
-text+=`💰 ${x.amount} VND\n`
+components:[row]
 
 })
-
-const embed = new EmbedBuilder()
-
-.setTitle("📜 Lịch sử")
-
-.setDescription(text||"Chưa có")
 
 interaction.reply({
-embeds:[embed],
-ephemeral:true
-})
-
-}
-
-if(interaction.customId === "top"){
-
-const data = db.readDB()
-
-const top = Object.entries(data.users)
-
-.sort((a,b)=>b[1].money-a[1].money)
-
-.slice(0,10)
-
-let text=""
-
-top.forEach((u,i)=>{
-
-text+=`#${i+1} <@${u[0]}> ${u[1].money} VND\n`
-
-})
-
-const embed = new EmbedBuilder()
-
-.setTitle("🏆 TOP TIỀN")
-
-.setDescription(text)
-
-interaction.reply({
-embeds:[embed],
+content:"✅ Đã gửi admin duyệt",
 ephemeral:true
 })
 
