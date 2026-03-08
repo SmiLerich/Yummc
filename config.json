@@ -1,0 +1,6 @@
+{
+ "token":"BOT_TOKEN",
+ "adminRole":"ROLE_ADMIN_ID",
+ "adminChannel":"CHANNEL_ADMIN_ID",
+ "qrImage":"https://img.vietqr.io/image/mb-123456789-compact.png"
+}
