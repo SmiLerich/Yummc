@@ -44,4 +44,7 @@ save(data)
 
 }
 
-module.exports={getUser,updateUser}
+module.exports = {
+   getUser,
+   updateUser
+}
