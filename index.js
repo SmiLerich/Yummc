@@ -21,7 +21,7 @@ const ADMIN_ROLE = process.env.ADMIN_ROLE || "ADMIN_ROLE_ID"
 const ADMIN_CHANNEL = process.env.ADMIN_CHANNEL || "ADMIN_CHANNEL_ID"
 const QR_IMAGE = process.env.QR_IMAGE || "QR_LINK"
 
-client.once("ready",()=>{
+client.once("clientReady",()=>{
 
 console.log("Bank bot online")
 
@@ -219,7 +219,7 @@ new ButtonBuilder()
 interaction.reply({
 embeds:[embed],
 components:[row],
-ephemeral:true
+flags: 64
 })
 
 }
