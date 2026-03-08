@@ -1,50 +1,66 @@
 const fs = require("fs")
 
-const file = "./userdata.json"
-
-function load(){
-return JSON.parse(fs.readFileSync(file))
+function readDB(){
+return JSON.parse(fs.readFileSync("./userdata.json"))
 }
 
-function save(data){
-fs.writeFileSync(file,JSON.stringify(data,null,2))
+function writeDB(data){
+fs.writeFileSync("./userdata.json",JSON.stringify(data,null,2))
 }
 
 function getUser(id){
+const db = readDB()
+return db.users[id]
+}
 
-let data = load()
+function createUser(id,username,password){
 
-if(!data[id]){
+const db = readDB()
 
-data[id]={
+db.users[id] = {
+username,
+password,
+money:0
+}
 
-username:"",
-password:"",
-money:0,
-history:[],
-logged:false
+writeDB(db)
 
 }
 
-save(data)
+function addMoney(id,amount){
+
+const db = readDB()
+
+db.users[id].money += amount
+
+writeDB(db)
 
 }
 
-return data[id]
+function transfer(from,to,amount){
 
-}
+const db = readDB()
 
-function updateUser(id,user){
+db.users[from].money -= amount
+db.users[to].money += amount
 
-let data = load()
+db.history.push({
+type:"transfer",
+from,
+to,
+amount,
+time:Date.now()
+})
 
-data[id]=user
-
-save(data)
+writeDB(db)
 
 }
 
 module.exports = {
-   getUser,
-   updateUser
+readDB,
+writeDB,
+getUser,
+createUser,
+addMoney,
+transfer
 }
