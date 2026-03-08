@@ -1,13 +1,13 @@
 const {
 Client,
 GatewayIntentBits,
+EmbedBuilder,
 ActionRowBuilder,
 ButtonBuilder,
 ButtonStyle,
 ModalBuilder,
 TextInputBuilder,
-TextInputStyle,
-EmbedBuilder
+TextInputStyle
 } = require("discord.js")
 
 const db = require("./database")
@@ -22,31 +22,35 @@ const QR_IMAGE = process.env.QR_IMAGE
 
 client.once("ready",()=>{
 
-console.log("Bank bot online")
+console.log("BANK BOT ONLINE")
 
 })
 
-client.on("interactionCreate", async interaction=>{
+client.on("interactionCreate",async interaction=>{
 
+try{
+
+// SLASH COMMAND
 if(interaction.isChatInputCommand()){
 
 if(interaction.commandName === "bank"){
 
-const user = db.getUser(interaction.user.id)
+const data = db.readDB()
+const user = data.users[interaction.user.id]
 
 if(!user){
 
 const modal = new ModalBuilder()
-.setCustomId("create_account")
+.setCustomId("create_acc")
 .setTitle("Mở tài khoản")
 
 const name = new TextInputBuilder()
-.setCustomId("username")
+.setCustomId("name")
 .setLabel("Tên tài khoản")
 .setStyle(TextInputStyle.Short)
 
 const pass = new TextInputBuilder()
-.setCustomId("password")
+.setCustomId("pass")
 .setLabel("Mật khẩu")
 .setStyle(TextInputStyle.Short)
 
@@ -61,14 +65,12 @@ return interaction.showModal(modal)
 
 const embed = new EmbedBuilder()
 
-.setTitle("🏦 YUMMC BANK")
+.setTitle("🏦 BANK")
 
 .setDescription(`
-👤 Chủ TK: **${user.username}**
+👤 Chủ TK: **${user.name}**
 💰 Số dư: **${user.money} VND**
 `)
-
-.setColor("Green")
 
 const row = new ActionRowBuilder()
 
@@ -106,8 +108,10 @@ ephemeral:true
 
 }
 
+// BUTTON
 if(interaction.isButton()){
 
+// MENU NẠP
 if(interaction.customId === "deposit"){
 
 const row = new ActionRowBuilder()
@@ -115,18 +119,18 @@ const row = new ActionRowBuilder()
 .addComponents(
 
 new ButtonBuilder()
-.setCustomId("deposit_card")
+.setCustomId("napcard")
 .setLabel("📱 Nạp Card")
 .setStyle(ButtonStyle.Primary),
 
 new ButtonBuilder()
-.setCustomId("deposit_bank")
+.setCustomId("napbank")
 .setLabel("🏦 Nạp Bank")
 .setStyle(ButtonStyle.Success)
 
 )
 
-interaction.reply({
+return interaction.reply({
 content:"Chọn phương thức nạp",
 components:[row],
 ephemeral:true
@@ -134,7 +138,8 @@ ephemeral:true
 
 }
 
-if(interaction.customId === "deposit_card"){
+// NẠP CARD
+if(interaction.customId === "napcard"){
 
 const modal = new ModalBuilder()
 .setCustomId("card_modal")
@@ -167,15 +172,16 @@ new ActionRowBuilder().addComponents(serial),
 new ActionRowBuilder().addComponents(price)
 )
 
-interaction.showModal(modal)
+return interaction.showModal(modal)
 
 }
 
-if(interaction.customId === "deposit_bank"){
+// NẠP BANK
+if(interaction.customId === "napbank"){
 
 const modal = new ModalBuilder()
 .setCustomId("bank_modal")
-.setTitle("Nạp chuyển khoản")
+.setTitle("Nạp bank")
 
 const gameid = new TextInputBuilder()
 .setCustomId("gameid")
@@ -192,43 +198,85 @@ new ActionRowBuilder().addComponents(gameid),
 new ActionRowBuilder().addComponents(money)
 )
 
-interaction.showModal(modal)
+return interaction.showModal(modal)
 
 }
 
-}
+// TOP
+if(interaction.customId === "top"){
 
-if(interaction.isModalSubmit()){
+const data = db.readDB()
 
-if(interaction.customId === "create_account"){
+const top = Object.entries(data.users)
+.sort((a,b)=>b[1].money-a[1].money)
+.slice(0,10)
 
-const name = interaction.fields.getTextInputValue("username")
-const pass = interaction.fields.getTextInputValue("password")
+let text=""
 
-db.createUser(interaction.user.id,name,pass)
+top.forEach((u,i)=>{
 
-interaction.reply({
-content:"✅ Tạo tài khoản thành công",
+text += `${i+1}. ${u[1].name} - ${u[1].money}\n`
+
+})
+
+return interaction.reply({
+embeds:[new EmbedBuilder().setTitle("TOP TIỀN").setDescription(text)],
 ephemeral:true
 })
 
 }
 
+// HISTORY
+if(interaction.customId === "history"){
+
+const data = db.readDB()
+
+const list = data.history.filter(x=>x.user===interaction.user.id || x.from===interaction.user.id)
+
+let text=""
+
+list.slice(-10).forEach(x=>{
+
+text += `${x.type} ${x.amount}\n`
+
+})
+
+return interaction.reply({
+embeds:[new EmbedBuilder().setTitle("Lịch sử").setDescription(text || "Chưa có")],
+ephemeral:true
+})
+
+}
+
+}
+
+// MODAL
+if(interaction.isModalSubmit()){
+
+// TẠO TK
+if(interaction.customId === "create_acc"){
+
+const name = interaction.fields.getTextInputValue("name")
+const pass = interaction.fields.getTextInputValue("pass")
+
+db.createUser(interaction.user.id,name,pass)
+
+return interaction.reply({
+content:"Tạo tài khoản thành công",
+ephemeral:true
+})
+
+}
+
+// NẠP BANK
 if(interaction.customId === "bank_modal"){
 
-const gameid = interaction.fields.getTextInputValue("gameid")
 const money = interaction.fields.getTextInputValue("money")
 
 const embed = new EmbedBuilder()
 
-.setTitle("🏦 NẠP CHUYỂN KHOẢN")
-
-.setDescription(`
-ID GAME: **${gameid}**
-SỐ TIỀN: **${money}**
-Quét QR bên dưới
-`)
-
+.setTitle("NẠP CHUYỂN KHOẢN")
+.setDescription(`Số tiền: ${money}`)
 .setImage(QR_IMAGE)
 
 const row = new ActionRowBuilder()
@@ -236,13 +284,13 @@ const row = new ActionRowBuilder()
 .addComponents(
 
 new ButtonBuilder()
-.setCustomId(`bank_done_${money}`)
-.setLabel("✅ Tôi đã chuyển")
+.setCustomId(`bankdone_${interaction.user.id}_${money}`)
+.setLabel("Tôi đã chuyển")
 .setStyle(ButtonStyle.Success)
 
 )
 
-interaction.reply({
+return interaction.reply({
 embeds:[embed],
 components:[row],
 ephemeral:true
@@ -250,11 +298,9 @@ ephemeral:true
 
 }
 
+// NẠP CARD
 if(interaction.customId === "card_modal"){
 
-const type = interaction.fields.getTextInputValue("type")
-const code = interaction.fields.getTextInputValue("code")
-const serial = interaction.fields.getTextInputValue("serial")
 const price = interaction.fields.getTextInputValue("price")
 
 const channel = client.channels.cache.get(ADMIN_CHANNEL)
@@ -264,48 +310,37 @@ const row = new ActionRowBuilder()
 .addComponents(
 
 new ButtonBuilder()
-.setCustomId(`card_accept_${interaction.user.id}_${price}`)
+.setCustomId(`cardok_${interaction.user.id}_${price}`)
 .setLabel("Duyệt")
 .setStyle(ButtonStyle.Success),
 
 new ButtonBuilder()
-.setCustomId(`card_reject`)
+.setCustomId(`cardno`)
 .setLabel("Từ chối")
 .setStyle(ButtonStyle.Danger)
 
 )
 
 channel.send({
-
-embeds:[
-
-new EmbedBuilder()
-
-.setTitle("💳 Yêu cầu nạp thẻ")
-
-.setDescription(`
-
-User: ${interaction.user.username}
-
-Loại: ${type}
-Mã: ${code}
-Serial: ${serial}
-Mệnh giá: ${price}
-
-`)
-
-],
-
+embeds:[new EmbedBuilder().setTitle("Yêu cầu nạp thẻ").setDescription(`User: ${interaction.user.username}\nMệnh giá: ${price}`)],
 components:[row]
-
 })
 
-interaction.reply({
-content:"✅ Đã gửi admin duyệt",
+return interaction.reply({
+content:"Đã gửi admin duyệt",
 ephemeral:true
 })
 
 }
+
+}
+
+}catch(e){
+
+console.log(e)
+
+if(!interaction.replied)
+interaction.reply({content:"Có lỗi xảy ra",ephemeral:true})
 
 }
 
